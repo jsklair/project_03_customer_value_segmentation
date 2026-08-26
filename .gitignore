@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment / credentials
+.env
+.env.*
+
+# Generated databases
+data/database/*.db
+data/database/*.sqlite
+
+# Raw source data
+data/raw/*.xlsx
+
+# Operating system files
+.DS_Store
+Thumbs.db
