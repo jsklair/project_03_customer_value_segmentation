@@ -24,3 +24,6 @@ Thumbs.db
 
 # Generated interim data
 data/interim/*
+
+# Generated cleaned data
+data/cleaned/*

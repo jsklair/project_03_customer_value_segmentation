@@ -35,20 +35,41 @@ Profiling also established that missing customer identifiers form complete unide
 
 The evidence and resulting decisions are documented in [`docs/data_quality_and_cleaning_decisions.md`](docs/data_quality_and_cleaning_decisions.md).
 
+## Transaction cleaning completed
+
+The source-profiling decisions have now been translated into a reproducible classified transaction layer.
+
+The cleaning pipeline:
+
+* preserves all **1,044,848** rows from the overlap-corrected source;
+* retains raw fields alongside normalised analytical fields;
+* labels behavioural, validation and out-of-window periods explicitly;
+* distinguishes merchandise, cancellations/returns, postage, discounts, Manual entries and administrative/accounting records;
+* separates customer activity, observed net sales and product-breadth eligibility rather than applying one blanket valid/invalid transaction rule;
+* retains transactions without Customer ID for reconciliation while preventing them from entering customer-level measures;
+* preserves within-sheet exact duplicates for the primary analysis;
+* surfaces unfamiliar transaction types for investigation rather than silently classifying them.
+
+The first cleaning run surfaced a small set of unusual StockCodes, which were reviewed and incorporated into the documented classification rules before the transaction layer was accepted.
+
+The full classified dataset is generated locally and excluded from Git. Compact classification QA outputs are retained in the repository.
+
 ## Next stage
 
-The next step is to translate the profiling decisions into an explicit treatment matrix for customer activity, observed net sales and product breadth, then implement the reproducible cleaned transaction layer.
+The next stage is to build the **SQL/SQLite analytical layer**, starting with transaction-level validation and then customer and invoice aggregation.
 
 The intended analytical flow is:
 
 ```text
 validated source
-→ cleaned transaction lines
+→ classified transaction layer
 → SQL/SQLite analytical layer
 → snapshot-valid customer measures
 → interpretable customer segments
 → held-out behavioural validation
 → CRM priorities and recommendations
+```
+
 ```
 
 ## Tools
