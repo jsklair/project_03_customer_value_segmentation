@@ -1,28 +1,35 @@
 # Project 03: Customer Value & Retention Segmentation
 
-Customer segmentation analysis using real UK online-retail transaction data.
+Analysis of real UK online-retail transaction data to identify commercially meaningful customer groups for retention, reactivation and growth activity.
 
-The project will identify commercially meaningful customer groups using historical purchasing behaviour, then test whether those segments distinguish subsequent customer activity.
+The project uses a fixed historical snapshot to describe customers from their purchasing behaviour, then assesses whether those segments distinguish subsequent activity in a held-out future period.
 
 ## Business question
 
-Which customer groups should a CRM or Customer Insight Manager prioritise for retention, reactivation and growth activity?
+Which customer groups should a CRM or Customer Insight Manager prioritise for different retention, reactivation and growth activity?
 
 ## Data
 
-UCI Machine Learning Repository - Online Retail II.
+The analysis uses **Online Retail II** from the UCI Machine Learning Repository.
 
-The dataset contains approximately 1.07 million transaction lines from a UK-based online retailer between December 2009 and December 2011.
+The dataset contains approximately 1.07 million transaction lines from a UK-based non-store retailer between December 2009 and December 2011.
 
-## Planned approach
+The segmentation snapshot is **31 May 2011**, using customer behaviour from **1 June 2010 to 31 May 2011**. The period from **1 June to 30 November 2011** is held back for subsequent-behaviour validation.
 
-- profile and validate the transaction data;
+Detailed source provenance and raw-data handling are documented in [`data_sources.md`](data_sources.md).
+
+## Analytical approach
+
+The project will:
+
+- profile the transaction data and investigate material quality issues before setting cleaning rules;
 - create a reproducible cleaned analytical dataset;
-- model customer, invoice and product relationships where useful;
-- calculate customer value and behavioural measures;
-- design interpretable customer segments;
-- validate the segments against a held-back future period;
-- translate the findings into practical CRM recommendations.
+- use SQL and Python to derive snapshot-valid customer measures;
+- design commercially interpretable customer segments;
+- assess whether those segments distinguish subsequent purchasing behaviour;
+- translate the findings into practical CRM priorities and recommendations.
+
+The analysis will not be presented as churn modelling or customer lifetime value analysis. The available data supports finite-window measures of observed customer value and subsequent purchasing behaviour.
 
 ## Tools
 
@@ -34,4 +41,6 @@ The dataset contains approximately 1.07 million transaction lines from a UK-base
 
 ## Status
 
-Project setup and data acquisition.
+**In progress - data foundation and source profiling.**
+
+Current work is focused on understanding missing customer identifiers, cancellations and negative quantities, zero/negative prices, duplicate records and non-product transaction codes before final cleaning rules are set.
