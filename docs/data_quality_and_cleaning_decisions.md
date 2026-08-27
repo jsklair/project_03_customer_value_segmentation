@@ -174,7 +174,7 @@ Profiling found strong evidence of reversal and correction activity:
 
 - many matching positive and negative price/quantity combinations;
 - 172 perfectly balanced combinations;
-- 424 manual rows in those combinations.
+- 422 manual rows in those combinations, representing 30.1% of manual rows after correcting the worksheet overlap.
 
 Large manual entries frequently form exact-value reversals or adjustments.
 
