@@ -2,6 +2,8 @@
 
 ## Customer Value & Retention Segmentation
 
+> **Implementation note:** This file preserves the initial analytical design. Current implementation status is summarised in `README.md`, and the evidence-led profiling decisions are recorded in `docs/data_quality_and_cleaning_decisions.md`. Where implementation evidence refines the plan, the current-state documents take precedence.
+
 ## Business problem
 
 A UK online retailer wants to use historical transaction data to identify customer groups that should receive different retention, reactivation and growth treatment.
@@ -98,7 +100,7 @@ Segment names and thresholds will not be fixed before the underlying behavioural
 
 ## Data quality priorities
 
-The source will be profiled before final cleaning rules are imposed.
+The source should be profiled before final cleaning rules are imposed.
 
 Important areas include:
 
@@ -210,32 +212,36 @@ Project 03 should not be marked complete until the following have been addressed
 ### Code and reproducibility
 
 - Python and SQL files are complete and readable;
-- comments explain analytical intent, assumptions and non-obvious logic without becoming tutorial narration;
+- important analytical definitions, assumptions, exclusions, transformations, leakage safeguards and validation checks are explained with concise local comments;
+- clear function names and docstrings do not substitute for analytical comments where reasoning is non-obvious;
+- substantive public code and refactors receive a separate annotation review before commit;
 - dependencies are recorded;
 - source and generated data are handled consistently;
 - reproduction instructions are complete;
 - the project has been run through its documented workflow where practical;
 - UTF-8 and general text hygiene have been checked.
 
-### Public presentation
+### Public presentation and milestone consistency
 
-- README is complete, concise and written in a natural experienced-analyst voice;
-- selected visuals have been manually reviewed;
-- GitHub Pages is complete and visually checked;
+- README is maintained in a natural experienced-analyst voice throughout the build;
+- when a material stage completes, current-state wording in README, methodology docs and the draft PR is synchronised before the next stage begins;
+- selected visuals are manually reviewed;
+- GitHub Pages is complete and visually checked before project closure;
 - public documents use consistent metrics, terminology, findings and recommendations;
-- the distinction between this initial plan and the final implemented state is clear;
-- no private working material or accidental prompt/assistant residue is present.
+- the distinction between this initial plan and the current/final implemented state remains clear;
+- no private working material or irrelevant development residue is present.
 
-### GitHub closure
+### GitHub workflow and closure
 
-- final project changes have been reviewed through the planned pull-request workflow;
-- completed milestone branches have been merged appropriately;
-- local `main` has been synchronised and checked;
-- obsolete local and remote feature branches have been cleaned up;
-- repository About description, website and topics have been completed;
-- GitHub profile README and pinning have been reconsidered;
-- the profile website has been reconsidered against the strongest published project;
-- relevant Data Career Rebuild Project Sources have been updated.
+- the final project changes are reviewed through the planned pull-request workflow;
+- completed milestone branches are merged appropriately;
+- local `main` is synchronised and checked;
+- obsolete local and remote feature branches are cleaned up;
+- repository About description is maintained while the project is public;
+- Website and topics are completed/updated as the relevant public artefacts exist;
+- GitHub profile README and pinning are reconsidered at completion;
+- the profile website is reconsidered against the strongest published project;
+- relevant Data Career Rebuild Project Sources are updated.
 
 The final review should verify these standards rather than requiring a major rescue or rewrite.
 

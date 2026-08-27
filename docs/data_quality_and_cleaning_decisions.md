@@ -1,8 +1,10 @@
 # Data Quality and Cleaning Decisions
 
-## Purpose
+## Status
 
-This document records the main data-quality findings from the initial profiling of the UCI Online Retail II dataset and the resulting analytical decisions for Project 03.
+**Source profiling complete — cleaning implementation next.**
+
+This document records the main data-quality findings from profiling the UCI Online Retail II dataset and the resulting analytical decisions for Project 03.
 
 The aim is to distinguish between:
 
@@ -11,7 +13,7 @@ The aim is to distinguish between:
 - limitations that affect the customer-level analytical population;
 - issues that should be tested later through sensitivity analysis.
 
-The profiling was performed before the final cleaned analytical dataset was created.
+The final cleaned analytical dataset has not yet been created. This document defines the evidence base that the cleaning pipeline must implement and validate.
 
 ---
 
@@ -126,7 +128,7 @@ Cancellation transactions should be retained where needed to calculate net custo
 
 Negative-quantity rows that do not represent customer cancellations should not contribute to customer purchasing behaviour.
 
-The final cleaning pipeline should explicitly distinguish customer returns/cancellations from operational stock adjustments.
+The cleaning pipeline must explicitly distinguish customer returns/cancellations from operational stock adjustments.
 
 ---
 
@@ -182,7 +184,7 @@ Large manual entries frequently form exact-value reversals or adjustments.
 
 Manual transactions should not be treated as ordinary merchandise and should not contribute to product-breadth measures.
 
-Their treatment in customer net-sales calculations will be defined explicitly when the cleaning and feature logic is implemented.
+Their treatment in customer net-sales calculations must be defined explicitly in the cleaning and feature logic.
 
 They should not be classified automatically as ordinary customer purchases.
 
@@ -216,7 +218,7 @@ Special transaction codes should be classified according to their known business
 - observed net sales;
 - product breadth.
 
-The exact classification will be implemented explicitly in the cleaning pipeline.
+The exact classification must be implemented explicitly in the cleaning pipeline.
 
 ---
 
@@ -306,7 +308,7 @@ Customer-level feature distributions should be reviewed after aggregation, and s
 
 ## 14. Behavioural and validation populations
 
-The planned behavioural window is:
+The behavioural window is:
 
 **1 June 2010 to 31 May 2011**
 
@@ -320,7 +322,7 @@ Before final cleaning:
 - 4,338 have at least one positive-sale row;
 - 3,499 identifiable customers appear in the validation window;
 - 2,500 behavioural-window customers are also observed during validation;
-- 999 validation customers were not observed during the behavioural window.
+- 999 validation customers were not observed in the behavioural window.
 
 ### Decision
 
@@ -334,7 +336,7 @@ The validation period will be used only to assess whether snapshot-defined segme
 
 ## Overall cleaning principle
 
-The cleaning approach for this project is evidence-led rather than based on blanket rules.
+The cleaning approach is evidence-led rather than based on blanket rules.
 
 The guiding process is:
 
@@ -345,3 +347,5 @@ Confirmed source errors are corrected.
 Unusual records are not removed simply because they are inconvenient, extreme or duplicated.
 
 Where the source does not provide enough evidence to make a definitive distinction, the assumption will be documented and, where material, tested through sensitivity analysis.
+
+The next implementation step is to translate these decisions into an explicit transaction-treatment matrix and then into the reproducible cleaning pipeline.

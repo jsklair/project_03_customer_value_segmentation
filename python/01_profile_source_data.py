@@ -25,6 +25,9 @@ DISPLAY_COLUMNS = list(EXPECTED_COLUMNS)
 # Increment this whenever the construction logic for the interim dataset changes.
 CACHE_VERSION = 2
 
+# These boundaries implement the settled snapshot design. The behavioural
+# window ends at the 31 May 2011 snapshot; later activity is held back so it
+# cannot leak into segment construction.
 BEHAVIOURAL_START = pd.Timestamp("2010-06-01")
 VALIDATION_START = pd.Timestamp("2011-06-01")
 VALIDATION_END = pd.Timestamp("2011-12-01")
@@ -87,6 +90,9 @@ def compare_overlap(earlier_sheet, later_sheet):
             .reset_index()
         )
 
+    # Compare occurrence counts, not just distinct row values. A repeated row
+    # is only proven duplicate source coverage if it appears with the same
+    # multiplicity in both worksheets.
     earlier_counts = count_patterns(earlier_overlap, "earlier_count")
     later_counts = count_patterns(later_overlap, "later_count")
 
@@ -163,6 +169,8 @@ def build_interim_dataset():
     )
     validate_source_columns(transactions, "Combined transactions")
 
+    # Store the overlap evidence alongside the combined DataFrame so a later
+    # run can reuse the cache without losing the provenance of the correction.
     cache_payload = {
         "cache_version": CACHE_VERSION,
         "transactions": transactions,
@@ -187,6 +195,9 @@ def load_transactions():
         except Exception:
             print("Cached interim dataset could not be read. Rebuilding from Excel.")
         else:
+            # The cache is accepted only when it was built with the current
+            # construction logic. This prevents stale cached data from silently
+            # bypassing a later source-handling correction.
             valid_cache = (
                 isinstance(cached_object, dict)
                 and cached_object.get("cache_version") == CACHE_VERSION
@@ -213,6 +224,10 @@ def build_context(transactions):
     zero_price = transactions["Price"] == 0
     cancelled = transactions["Invoice"].astype("string").str.startswith("C", na=False)
     line_value = transactions["Quantity"] * transactions["Price"]
+
+    # "Positive sale" is a profiling definition used to quantify raw positive
+    # commercial value. It is deliberately not treated as the final definition
+    # of a valid customer purchase before cleaning rules are implemented.
     positive_sale = (transactions["Quantity"] > 0) & (transactions["Price"] > 0)
 
     return {
@@ -302,6 +317,9 @@ def profile_missing_customers(transactions, context):
     positive_sale = context["positive_sale"]
     line_value = context["line_value"]
 
+    # Missing identifiers remove our ability to attribute activity to a
+    # customer. Quantify their commercial scale rather than silently dropping
+    # them and understating a material limitation of the segmentation dataset.
     missing_positive_value = line_value.loc[missing_customer & positive_sale].sum()
 
     print_section("Missing Customer ID impact")
@@ -330,6 +348,9 @@ def profile_quantities_and_prices(transactions, context):
     zero_price = context["zero_price"]
     cancelled = context["cancelled"]
 
+    # Separate standard cancellation records from other negative-quantity
+    # rows. The latter may be stock adjustments or losses rather than customer
+    # returns and therefore require different treatment in the clean layer.
     negative_cancelled = negative_quantity & cancelled
     negative_not_cancelled = negative_quantity & ~cancelled
     cancelled_not_negative = cancelled & ~negative_quantity
@@ -362,6 +383,9 @@ def profile_quantities_and_prices(transactions, context):
     print(f"\nZero-price rows with Customer ID: {(zero_price & ~missing_customer).sum():,}")
     print(f"Zero-price rows without Customer ID: {(zero_price & missing_customer).sum():,}")
 
+    # Zero price does not automatically mean an invalid transaction: genuine
+    # free/promotional items can represent customer activity even though they
+    # contribute no sales value. Profile identifiable cases before classifying.
     zero_price_identified_rows = transactions.loc[
         zero_price & ~missing_customer,
         DISPLAY_COLUMNS,
@@ -383,6 +407,9 @@ def profile_special_codes(transactions):
     stock_code_text = (
         transactions["StockCode"].astype("string").str.strip().str.upper()
     )
+    # This pattern is only a diagnostic shortlist. Earlier profiling showed
+    # that some genuine merchandise uses unusual code formats, so failing the
+    # pattern must never be used as an automatic exclusion rule.
     standard_product_code = stock_code_text.str.fullmatch(
         r"\d{5}[A-Z]{0,2}",
         na=False,
@@ -425,6 +452,9 @@ def profile_manual_transactions(transactions):
     manual_code = (
         transactions["StockCode"].astype("string").str.strip().str.upper().eq("M")
     )
+    # Manual entries are financially material but are not ordinary merchandise.
+    # Profile them separately so later logic can exclude them from product
+    # breadth while making an explicit choice about any net-sales contribution.
     manual_rows = transactions.loc[manual_code, DISPLAY_COLUMNS].copy()
     manual_rows["line_value"] = manual_rows["Quantity"] * manual_rows["Price"]
     manual_rows["is_cancellation"] = (
@@ -472,6 +502,9 @@ def profile_manual_transactions(transactions):
     )
     print(status_summary.to_string())
 
+    # Matching positive and negative rows at the same price and absolute
+    # quantity is evidence that the manual code is being used for corrections
+    # or reversals. It is evidence of a mechanism, not proof of row-level pairs.
     manual_rows["absolute_quantity"] = manual_rows["Quantity"].abs()
     reversal_summary = (
         manual_rows.groupby(["Price", "absolute_quantity"], dropna=False)
@@ -497,6 +530,9 @@ def profile_manual_transactions(transactions):
         index=False,
     )
 
+    # Perfect balance is stronger evidence of reversal behaviour because the
+    # candidate combination has equal positive/negative counts and zero net
+    # value, while still avoiding an unsupported claim that rows pair exactly.
     balanced = candidates.loc[
         candidates["positive_rows"].eq(candidates["negative_rows"])
         & candidates["total_line_value"].abs().lt(0.01)
@@ -515,6 +551,9 @@ def profile_manual_transactions(transactions):
 
 def profile_duplicates(transactions, context):
     """Assess retained exact duplicates without assuming they are erroneous."""
+    # The source has no transaction-line identifier and legitimately repeats
+    # invoice/product combinations. Exact repetition is therefore suspicious,
+    # but not enough on its own to justify deleting customer activity.
     duplicate_group_mask = transactions.duplicated(keep=False)
     duplicate_rows = transactions.loc[duplicate_group_mask, DISPLAY_COLUMNS].copy()
     duplicate_rows["line_value"] = duplicate_rows["Quantity"] * duplicate_rows["Price"]
@@ -548,6 +587,9 @@ def profile_duplicates(transactions, context):
     if duplicate_rows.empty:
         print("No exact duplicate groups remain.")
     else:
+        # Recheck the former worksheet-overlap period after the source fix.
+        # A large residual concentration here would suggest the ingestion
+        # correction was incomplete rather than a separate duplicate issue.
         overlap_mask = duplicate_rows["InvoiceDate"].between(
             pd.Timestamp("2010-12-01"),
             pd.Timestamp("2010-12-09 23:59:59"),
@@ -567,6 +609,9 @@ def profile_duplicates(transactions, context):
         print("\nDates with the most remaining duplicate-group rows:")
         print_top(duplicate_by_date, 30)
 
+    # Test the source grain before interpreting exact duplicates. If the same
+    # product legitimately appears on multiple lines of an invoice, "one row
+    # per invoice/product" cannot be assumed as a validity rule.
     invoice_product_counts = (
         transactions.groupby(["Invoice", "StockCode"], dropna=False)
         .size()
@@ -610,6 +655,9 @@ def profile_duplicates(transactions, context):
     print("\nExamples of repeated products with differing line details:")
     print_top(varied.sort_values("rows", ascending=False), 30, index=False)
 
+    # Quantify the rows that a blanket drop_duplicates() would actually remove.
+    # This frames the commercial consequence of the assumption before any
+    # cleaning rule is imposed.
     excess_duplicate = transactions.duplicated(keep="first")
     excess_rows = transactions.loc[excess_duplicate, DISPLAY_COLUMNS].copy()
     excess_rows["line_value"] = excess_rows["Quantity"] * excess_rows["Price"]
@@ -636,6 +684,9 @@ def profile_duplicates(transactions, context):
         f"{safe_share(excess_positive_value, context['total_positive_value']):.2%}"
     )
 
+    # Portfolio-wide value impact can look small while individual customers
+    # move materially. Measure duplicate exposure at customer level because
+    # segmentation thresholds will be applied to customer-level behaviour.
     identified_positive_sale = context["positive_sale"] & ~context["missing_customer"]
     customer_positive_value = (
         transactions.loc[identified_positive_sale]
@@ -680,6 +731,8 @@ def profile_duplicates(transactions, context):
 
 def profile_invoice_customer_consistency(transactions):
     """Check whether invoices map cleanly to customer identifiers."""
+    # Invoice-level frequency/value measures assume one customer per invoice.
+    # Confirm that attribution is unambiguous before relying on those measures.
     invoice_profile = (
         transactions.groupby("Invoice", dropna=False)
         .agg(
@@ -706,6 +759,9 @@ def profile_invoice_customer_consistency(transactions):
 
 def profile_customer_country_consistency(transactions, context):
     """Check whether customers are associated with more than one country."""
+    # Country is not planned as a core segmentation feature, but checking its
+    # stability prevents us from treating a transaction-level field as an
+    # unquestioned customer attribute later in the project.
     identified = transactions.loc[~context["missing_customer"]].copy()
     country_counts = identified.groupby("Customer ID")["Country"].nunique()
     multi_country = country_counts.loc[country_counts > 1]
@@ -738,6 +794,9 @@ def profile_customer_country_consistency(transactions, context):
 
 def profile_stock_descriptions(transactions):
     """Assess product-code formatting and description stability."""
+    # Product breadth should use a stable identifier. Test whether Description
+    # is sufficiently consistent before deciding whether StockCode or text is
+    # the safer product key for customer-level features.
     described = transactions.loc[
         transactions["Description"].notna(),
         ["StockCode", "Description"],
@@ -775,6 +834,9 @@ def profile_stock_descriptions(transactions):
         print("\nStockCodes with the most distinct descriptions:")
         print_top(detail, 30)
 
+    # Case and surrounding whitespace should not manufacture extra products.
+    # Quantify raw-format variants to justify normalising StockCode before
+    # product-breadth calculations in the clean/feature layers.
     variants = transactions[["StockCode"]].copy()
     variants["stock_code_normalised"] = (
         variants["StockCode"].astype("string").str.strip().str.upper()
@@ -809,6 +871,9 @@ def profile_stock_descriptions(transactions):
 
 def profile_outliers(transactions, context):
     """Describe extreme positive customer-identified transactions without deleting them."""
+    # Extreme values can be commercially genuine in wholesale-style retail
+    # data. Profile their scale and identity rather than deleting them merely
+    # because they are far from the centre of the distribution.
     commercial_rows = transactions.loc[
         context["positive_sale"] & ~context["missing_customer"],
         DISPLAY_COLUMNS,
@@ -836,6 +901,9 @@ def profile_outliers(transactions, context):
 
 def profile_analysis_windows(transactions, context):
     """Profile the raw snapshot and held-out validation populations."""
+    # Use half-open date ranges so the final calendar day is fully included
+    # without depending on timestamp precision. The validation period remains
+    # strictly separate to prevent future behaviour leaking into segmentation.
     behavioural_period = transactions["InvoiceDate"].between(
         BEHAVIOURAL_START,
         VALIDATION_START,
@@ -851,6 +919,9 @@ def profile_analysis_windows(transactions, context):
     positive_sale = context["positive_sale"]
     line_value = context["line_value"]
 
+    # Keep both the broad identifiable population and the positive-sale subset.
+    # The difference helps expose customers whose only observed activity is a
+    # return/cancellation or other non-positive transaction before cleaning.
     behavioural_customers = set(
         transactions.loc[behavioural_period & ~missing_customer, "Customer ID"].unique()
     )
@@ -929,6 +1000,8 @@ def print_checkpoint(
     behavioural_positive_customer_count,
 ):
     """Collect the main pre-cleaning diagnostics in one final checkpoint."""
+    # Reconcile the principal profiling findings in one place so later cleaning
+    # work can be checked against a stable, pre-cleaning baseline.
     print_section("Profiling phase checkpoint")
     metrics = {
         "Corrected source rows": len(transactions),
