@@ -1,0 +1,15 @@
+transaction_class,rows,identifiable_rows,invoices,customers,activity_rows,breadth_rows,raw_line_value,classified_net_sales,observed_net_sales
+merchandise,1017668,788267,41356,5853,788267,788267,19700954.46,19700954.46,17124941.0
+customer_cancellation_return,17974,17642,7406,2445,0,0,-719692.94,-719692.94,-713046.25
+postage_carriage,3788,2253,3783,538,0,0,433410.51,433410.51,134515.87
+operational_stock_adjustment,3393,0,3393,0,0,0,0.0,0.0,0.0
+manual,1403,1096,1290,582,0,0,-82935.57,-82935.57,-185325.48
+discount,173,170,151,55,0,0,-12879.63,-12879.63,-12785.34
+sample,102,0,37,0,0,0,-6000.85,0.0,0.0
+bank_charge,100,37,95,22,0,0,-35482.25,0.0,0.0
+gift_voucher,100,0,93,0,0,0,1686.61,1686.61,0.0
+administrative_adjustment,72,64,72,53,0,0,7566.29,0.0,0.0
+amazon_platform_fee,36,0,36,0,0,0,-221520.5,0.0,0.0
+test_record,17,16,17,5,0,0,203.5,0.0,0.0
+commission,16,16,16,1,0,0,-7933.43,0.0,0.0
+bad_debt_adjustment,6,0,6,0,0,0,-147614.08,0.0,0.0

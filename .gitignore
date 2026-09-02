@@ -21,3 +21,9 @@ data/raw/*.xlsx
 # Operating system files
 .DS_Store
 Thumbs.db
+
+# Generated interim data
+data/interim/*
+
+# Generated cleaned data
+data/cleaned/*
