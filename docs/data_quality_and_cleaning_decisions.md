@@ -2,7 +2,7 @@
 
 ## Status
 
-**Source profiling and transaction-treatment methodology complete — cleaning implementation next.**
+**Source profiling, classified transaction cleaning and the initial SQL/customer-feature foundation are complete — feature analysis and segmentation next.**
 
 This document records the main data-quality findings from profiling the UCI Online Retail II dataset and the resulting analytical decisions for Project 03.
 
@@ -13,7 +13,7 @@ The aim is to distinguish between:
 * limitations that affect the customer-level analytical population;
 * issues that should be tested later through sensitivity analysis.
 
-The final cleaned analytical dataset has not yet been created. This document defines the evidence base and transaction-treatment rules that the cleaning pipeline must implement and validate.
+The evidence-led transaction-treatment rules have now been implemented and validated in the classified transaction layer. This document also records the downstream SQL and customer-population decisions that depend directly on those cleaning rules.
 
 ---
 
@@ -637,8 +637,13 @@ Different analytical measures are allowed to use different aspects of the same t
 
 Where the source does not provide enough evidence to make a definitive distinction, the assumption should be documented and, where material, tested through sensitivity analysis.
 
-The transaction-treatment matrix is now settled.
+The transaction-treatment methodology, classification precedence and cleaned-layer design are implemented and validated.
 
-The transaction-treatment methodology, classification precedence and cleaned-layer design are now settled. The next implementation step is to translate these decisions into the reproducible cleaning pipeline:
+---
 
-`python/02_clean_transactions.py`
+## 17. SQL/SQLite analytical foundation
+
+The classified transaction layer is loaded reproducibly into a local SQLite database using:
+
+```text
+python/03_build_database.py

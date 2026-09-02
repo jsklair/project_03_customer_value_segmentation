@@ -10,34 +10,30 @@ Which customer groups should a CRM or Customer Insight Manager prioritise for di
 
 The analysis uses **Online Retail II** from the UCI Machine Learning Repository.
 
-Customer segments will be defined at a **31 May 2011** snapshot using activity from **1 June 2010 to 31 May 2011**. Transactions from **1 June to 30 November 2011** are held back for subsequent-behaviour validation and cannot influence the original segment definitions.
+Customer segments are defined at a **31 May 2011** snapshot. The main behavioural window covers **1 June 2010 to 31 May 2011**, while transactions from **1 June to 30 November 2011** are held back for subsequent-behaviour validation and cannot influence the original segment definitions.
 
-The project will not be presented as churn modelling or customer lifetime value analysis. The data supports finite-window measures of observed customer value and later purchasing behaviour.
+The project is not presented as churn modelling or customer lifetime value analysis. The data supports finite-window measures of observed customer value and later purchasing behaviour.
 
-## Data foundation completed
+## Data foundation
 
-Source profiling is complete.
-
-The workbook contains two annual worksheets with overlapping coverage in early December 2010. Direct comparison confirmed **22,523 rows of duplicate source coverage** across the sheets. The combined source is therefore constructed by retaining the earlier sheet in full and appending only later records after its final timestamp.
+The source workbook contains two annual worksheets with overlapping coverage in early December 2010. Direct comparison confirmed **22,523 rows of duplicate source coverage** across the sheets. The combined source is therefore constructed by retaining the earlier sheet in full and appending only later records after its final timestamp.
 
 After that correction:
 
-- validated combined source: **1,044,848 rows**;
-- rows without Customer ID: **235,287**;
-- excess exact duplicate rows remaining within the retained source: **11,812**;
-- negative-quantity rows: **22,557**;
-- zero-price rows: **6,024**;
-- negative-price rows: **5**.
+* validated combined source: **1,044,848 rows**;
+* rows without Customer ID: **235,287**;
+* excess exact duplicate rows retained within the source: **11,812**;
+* negative-quantity rows: **22,557**;
+* zero-price rows: **6,024**;
+* negative-price rows: **5**.
 
 The remaining exact duplicates are retained in the primary dataset because the source has no transaction-line identifier that can distinguish an erroneous duplicate from legitimate repeated identical lines. Their impact will be tested later if segment membership proves sensitive to them.
 
-Profiling also established that missing customer identifiers form complete unidentified invoices rather than partly identified orders, that many non-cancellation negative quantities are operational stock adjustments, and that special/manual transaction codes need classification rather than blanket removal.
-
 The evidence and resulting decisions are documented in [`docs/data_quality_and_cleaning_decisions.md`](docs/data_quality_and_cleaning_decisions.md).
 
-## Transaction cleaning completed
+## Transaction cleaning
 
-The source-profiling decisions have now been translated into a reproducible classified transaction layer.
+The profiling decisions have been translated into a reproducible classified transaction layer.
 
 The cleaning pipeline:
 
@@ -48,15 +44,53 @@ The cleaning pipeline:
 * separates customer activity, observed net sales and product-breadth eligibility rather than applying one blanket valid/invalid transaction rule;
 * retains transactions without Customer ID for reconciliation while preventing them from entering customer-level measures;
 * preserves within-sheet exact duplicates for the primary analysis;
-* surfaces unfamiliar transaction types for investigation rather than silently classifying them.
+* ends with **zero unresolved transaction classifications**.
 
-The first cleaning run surfaced a small set of unusual StockCodes, which were reviewed and incorporated into the documented classification rules before the transaction layer was accepted.
+Post-cleaning, **15.0% of positive classified transaction value cannot be attributed to an identifiable customer**.
 
-The full classified dataset is generated locally and excluded from Git. Compact classification QA outputs are retained in the repository.
+The full classified dataset is generated locally and excluded from Git. Compact QA outputs remain in the repository.
+
+## SQL and customer snapshot layer
+
+The classified transaction data is loaded reproducibly into a local SQLite database and independently reconciled against the pandas-cleaned layer.
+
+The SQL foundation now includes:
+
+* transaction-level row, period, classification and monetary reconciliation;
+* a validated **53,628-invoice** analytical layer;
+* investigation of the 83 invoices containing more than one line timestamp;
+* explicit customer eligibility rules;
+* a settled purchase-frequency definition;
+* snapshot-valid customer measures built without validation-period leakage.
+
+The timestamp investigation found that all 83 affected invoices remain on one calendar date, 82 span no more than five minutes and the maximum span is nine minutes. The first recorded timestamp is therefore used consistently at invoice level.
+
+The segmentation population contains **4,908 identifiable customers with evidence of at least one qualifying purchase by the snapshot date**:
+
+* **4,324** made at least one qualifying purchase during the trailing 12-month behavioural window;
+* **584** are historical purchasers with no qualifying purchase during that window.
+
+A further 90 identified Customer IDs have no qualifying purchase history and are excluded from segmentation.
+
+Purchase frequency is defined as the **number of distinct qualifying purchase invoices during the trailing 12-month behavioural window**. Returns and other non-purchase records do not create additional purchase frequency.
+
+The initial customer snapshot layer includes:
+
+* recency;
+* observed tenure;
+* 12-month purchase frequency;
+* active months;
+* 12-month observed net sales;
+* product breadth;
+* prior-period purchasing indicators.
+
+Behavioural observed net sales reconcile exactly between the eligible customer feature population and the underlying transaction layer at **£7,762,616.79**.
 
 ## Next stage
 
-The next stage is to build the **SQL/SQLite analytical layer**, starting with transaction-level validation and then customer and invoice aggregation.
+The next stage is to inspect the customer-feature distributions and determine which measures provide useful, non-redundant evidence for commercially interpretable segmentation.
+
+Segment thresholds and names have **not** yet been fixed.
 
 The intended analytical flow is:
 
@@ -70,20 +104,18 @@ validated source
 → CRM priorities and recommendations
 ```
 
-```
-
 ## Tools
 
-- Python / pandas
-- SQL / SQLite
-- matplotlib
-- Git and GitHub
-- GitHub Pages
+* Python / pandas
+* SQL / SQLite
+* matplotlib
+* Git and GitHub
+* GitHub Pages
 
 Power BI and Excel are not being forced into this project because those capabilities are already demonstrated elsewhere in the portfolio and do not improve this analytical question.
 
 ## Current status
 
-**In progress — source profiling complete; cleaning pipeline next.**
+**In progress — data foundation and snapshot customer-feature layer complete; feature analysis and segmentation next.**
 
 See [`project_plan.md`](project_plan.md) for the initial analytical design and [`data_sources.md`](data_sources.md) for source provenance and licence information.
