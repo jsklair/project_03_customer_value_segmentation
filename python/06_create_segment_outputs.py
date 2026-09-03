@@ -490,6 +490,8 @@ def build_segment_summary(data):
         "average_future_observed_net_sales": 2,
         "total_future_observed_net_sales": 2,
         "average_future_product_breadth": 1,
+        "positive_snapshot_value": 2,
+        "positive_future_value": 2,
         "positive_snapshot_value_share_pct": 1,
         "positive_future_value_share_pct": 1,
     }
@@ -670,12 +672,15 @@ def save_future_purchase_chart(summary, overall_rate):
         alpha=0.2,
     )
 
-    for bar, rate in zip(
+    # Position labels beyond the upper Wilson bound so they do not
+    # overlap the confidence-interval whiskers.
+    for bar, rate, upper_bound in zip(
         bars,
         rates,
+        plot_data["future_purchase_rate_ci95_upper_pct"],
     ):
         ax.text(
-            rate + 1.5,
+            min(upper_bound + 1.5, 98),
             bar.get_y() + bar.get_height() / 2,
             f"{rate:.1f}%",
             va="center",
@@ -862,7 +867,7 @@ def save_reactivation_chart(summary):
     )
 
     ax.set_title(
-        "Previous customer value differentiates lapsed reactivation"
+        "High-value lapsed customers show higher held-out reactivation"
     )
 
     ax.grid(
@@ -870,13 +875,16 @@ def save_reactivation_chart(summary):
         alpha=0.2,
     )
 
-    for bar, rate in zip(
+    # Place labels above the upper Wilson bound so the vertical
+    # confidence-interval whiskers do not run through the text.
+    for bar, rate, upper_bound in zip(
         bars,
         rates,
+        plot_data["future_purchase_rate_ci95_upper_pct"],
     ):
         ax.text(
             bar.get_x() + bar.get_width() / 2,
-            rate + 1.2,
+            upper_bound + 0.8,
             f"{rate:.1f}%",
             ha="center",
             va="bottom",

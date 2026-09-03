@@ -1,8 +1,8 @@
 -- Project 03: Customer Value & Retention Segmentation
 -- Create the enriched customer feature layer used for segment design.
 --
--- The validated customer_snapshot_features view remains the stable base layer.
--- This second view adds features that became useful only after feature
+-- The validated customer_snapshot_features table remains the stable base layer.
+-- This second layer adds features that became useful only after feature
 -- profiling, particularly:
 --
 --   * previous observed customer value for historical-only customers;
@@ -14,10 +14,12 @@
 -- No held-out validation-period information is used.
 
 
-DROP VIEW IF EXISTS customer_segmentation_features;
+DROP TABLE IF EXISTS customer_segmentation_features;
 
 
-CREATE VIEW customer_segmentation_features AS
+-- Materialise this customer-grain feature layer because the final
+-- segmentation and validation stages reuse these calculations repeatedly.
+CREATE TABLE customer_segmentation_features AS
 
 WITH prior_invoice_metrics AS (
 
@@ -254,6 +256,10 @@ LEFT JOIN prior_product_breadth AS prior_breadth
 
 LEFT JOIN behavioural_purchase_metrics AS behavioural
     ON snapshot.customer_id_clean = behavioural.customer_id_clean;
+
+
+CREATE UNIQUE INDEX idx_customer_segmentation_features_customer
+    ON customer_segmentation_features (customer_id_clean);
 
 
 -- 1. Preserve the validated segmentation population exactly.

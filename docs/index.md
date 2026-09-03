@@ -270,6 +270,7 @@ For readers who want to inspect the implementation:
 * [README](https://github.com/jsklair/project_03_customer_value_segmentation#readme)
 * [Segmentation and validation methodology](https://github.com/jsklair/project_03_customer_value_segmentation/blob/main/docs/segmentation_and_validation_methodology.md)
 * [Data-quality and cleaning decisions](https://github.com/jsklair/project_03_customer_value_segmentation/blob/main/docs/data_quality_and_cleaning_decisions.md)
+* [Reproduce the analysis locally](https://github.com/jsklair/project_03_customer_value_segmentation/blob/main/docs/run_project_locally.md)
 * [Final segment summary](https://github.com/jsklair/project_03_customer_value_segmentation/blob/main/reports/customer_segment_summary.csv)
 * [CRM action summary](https://github.com/jsklair/project_03_customer_value_segmentation/blob/main/reports/customer_segment_actions.csv)
 

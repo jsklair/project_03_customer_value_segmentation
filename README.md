@@ -233,7 +233,11 @@ Final analytical outputs include:
 
 Power BI and Excel are not forced into this project because they do not improve the analytical decision and those capabilities are demonstrated elsewhere in the portfolio.
 
-## Reproducible flow
+## Reproducibility
+
+The project has been rerun from the original UCI workbook through cleaning, a fresh SQLite database, final segmentation, held-out validation, sensitivity analysis and regenerated portfolio outputs.
+
+The final reproducibility test used **Python 3.13.14** with pinned package versions in `requirements.txt`.
 
 ```text
 validated source
@@ -247,8 +251,10 @@ validated source
 → CRM priorities and visual outputs
 ```
 
+See [`docs/run_project_locally.md`](docs/run_project_locally.md) for the complete tested execution order and expected QA totals.
+
 ## Status
 
-**Analysis complete — final publication, reproducibility and repository QA in progress.**
+**Analysis and reproducibility complete — final repository publication and merge QA in progress.**
 
 See [`project_plan.md`](project_plan.md) for the initial analytical design, [`data_sources.md`](data_sources.md) for source provenance and licence information, and [`docs/segmentation_and_validation_methodology.md`](docs/segmentation_and_validation_methodology.md) for the final segmentation methodology.

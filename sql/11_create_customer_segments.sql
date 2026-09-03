@@ -25,10 +25,12 @@
 -- The held-out validation period is not used anywhere in segment assignment.
 
 
-DROP VIEW IF EXISTS customer_segments;
+DROP TABLE IF EXISTS customer_segments;
 
 
-CREATE VIEW customer_segments AS
+-- Materialise the final snapshot assignment so all reporting and
+-- held-out validation use one fixed segment membership table.
+CREATE TABLE customer_segments AS
 
 WITH behavioural_value_rank AS (
 
@@ -117,6 +119,10 @@ SELECT
     END AS customer_segment
 
 FROM ranked_features AS ranked;
+
+
+CREATE UNIQUE INDEX idx_customer_segments_customer
+    ON customer_segments (customer_id_clean);
 
 
 -- 1. Final MECE validation.

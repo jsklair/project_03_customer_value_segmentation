@@ -10,10 +10,13 @@
 -- show that belonging to a segment caused later purchasing behaviour.
 
 
-DROP VIEW IF EXISTS customer_segment_validation;
+DROP TABLE IF EXISTS customer_segment_validation;
 
 
-CREATE VIEW customer_segment_validation AS
+-- Materialise the held-out customer outcomes once so the validation
+-- summaries reuse a fixed customer-grain result rather than recalculating
+-- transaction-level future metrics for every reporting query.
+CREATE TABLE customer_segment_validation AS
 
 WITH validation_invoice_metrics AS (
 
@@ -145,6 +148,10 @@ LEFT JOIN validation_invoice_metrics AS invoices
 
 LEFT JOIN validation_product_breadth AS breadth
     ON segments.customer_id_clean = breadth.customer_id_clean;
+
+
+CREATE UNIQUE INDEX idx_customer_segment_validation_customer
+    ON customer_segment_validation (customer_id_clean);
 
 
 -- 1. Ensure validation preserves the complete snapshot segment population.
