@@ -60,6 +60,12 @@ def build_database(transactions: pd.DataFrame) -> None:
 
     DATABASE_FILE.parent.mkdir(parents=True, exist_ok=True)
 
+    # Rebuild the generated database from scratch so stale analytical
+    # tables or views from an earlier run cannot survive into a fresh
+    # pipeline execution.
+    if DATABASE_FILE.exists():
+        DATABASE_FILE.unlink()
+
     with sqlite3.connect(DATABASE_FILE) as connection:
         # Replace the generated table so rerunning the script produces a
         # reproducible database rather than appending duplicate records.

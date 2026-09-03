@@ -66,11 +66,15 @@ FROM (
 );
 
 
-DROP VIEW IF EXISTS invoice_summary;
+DROP TABLE IF EXISTS invoice_summary;
 
 
 -- 5. Build one row per invoice.
-CREATE VIEW invoice_summary AS
+--
+-- Materialise this stable analytical grain because several downstream
+-- customer calculations reuse it. Keeping it as a view would repeatedly
+-- recompute the million-row transaction aggregation.
+CREATE TABLE invoice_summary AS
 SELECT
     invoice_clean,
 
@@ -120,6 +124,17 @@ SELECT
 
 FROM classified_transactions
 GROUP BY invoice_clean;
+
+
+-- Support repeated customer- and period-level lookups downstream.
+CREATE UNIQUE INDEX idx_invoice_summary_invoice
+    ON invoice_summary (invoice_clean);
+
+CREATE INDEX idx_invoice_summary_customer_period
+    ON invoice_summary (customer_id_clean, analysis_period);
+
+CREATE INDEX idx_invoice_summary_period_activity
+    ON invoice_summary (analysis_period, has_qualifying_activity);
 
 
 -- 6. Reconcile invoice grain.

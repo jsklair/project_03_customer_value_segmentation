@@ -8,10 +8,13 @@
 -- The feature layer uses no information from the held-out validation period.
 
 
-DROP VIEW IF EXISTS customer_snapshot_features;
+DROP TABLE IF EXISTS customer_snapshot_features;
 
 
-CREATE VIEW customer_snapshot_features AS
+-- Materialise the validated snapshot so profiling and downstream
+-- segmentation reuse the same calculated customer grain rather than
+-- repeatedly expanding invoice- and transaction-level aggregations.
+CREATE TABLE customer_snapshot_features AS
 
 WITH eligible_customers AS (
 
@@ -176,6 +179,10 @@ LEFT JOIN product_breadth AS breadth
     ON eligible.customer_id_clean = breadth.customer_id_clean;
 
 
+CREATE UNIQUE INDEX idx_customer_snapshot_features_customer
+    ON customer_snapshot_features (customer_id_clean);
+
+
 -- 1. Confirm the final eligible snapshot population.
 SELECT
     COUNT(*) AS eligible_customers,
@@ -241,23 +248,11 @@ ORDER BY customer_group;
 
 
 -- 5. Reconcile behavioural observed net sales for the eligible segmentation
--- population back to the transaction layer.
+-- population back to the already-validated invoice layer.
 --
--- Identified Customer IDs with no qualifying purchase history are deliberately
--- excluded from segmentation. Their financial effects therefore should not
--- be included in this reconciliation.
-WITH eligible_customers AS (
-
-    SELECT
-        customer_id_clean
-    FROM invoice_summary
-    WHERE
-        has_customer_id = 1
-        AND analysis_period IN ('pre_behavioural', 'behavioural')
-        AND has_qualifying_activity = 1
-    GROUP BY customer_id_clean
-)
-
+-- invoice_summary has previously been reconciled exactly to the transaction
+-- layer. Reusing that materialised analytical grain avoids an unnecessarily
+-- expensive transaction-level join while preserving the same monetary check.
 SELECT
     ROUND(
         (
@@ -268,14 +263,13 @@ SELECT
     ) AS customer_feature_observed_net_sales,
 
     ROUND(
-        SUM(transactions.observed_net_sales),
+        SUM(invoices.observed_invoice_value),
         2
-    ) AS eligible_transaction_observed_net_sales
+    ) AS eligible_invoice_observed_net_sales
 
-FROM classified_transactions AS transactions
+FROM invoice_summary AS invoices
 
-INNER JOIN eligible_customers AS eligible
-    ON transactions.customer_id_clean = eligible.customer_id_clean
+INNER JOIN customer_snapshot_features AS customers
+    ON invoices.customer_id_clean = customers.customer_id_clean
 
-WHERE
-    transactions.analysis_period = 'behavioural';
+WHERE invoices.analysis_period = 'behavioural';

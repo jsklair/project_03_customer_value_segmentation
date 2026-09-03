@@ -2,7 +2,7 @@
 
 ## Status
 
-**Source profiling, classified transaction cleaning and the initial SQL/customer-feature foundation are complete — feature analysis and segmentation next.**
+**Source profiling, transaction cleaning, SQL feature engineering, final segmentation, held-out validation and sensitivity testing are complete.**
 
 This document records the main data-quality findings from profiling the UCI Online Retail II dataset and the resulting analytical decisions for Project 03.
 
@@ -11,9 +11,11 @@ The aim is to distinguish between:
 * confirmed source issues that should be corrected;
 * unusual records that should be classified rather than removed automatically;
 * limitations that affect the customer-level analytical population;
-* issues that should be tested later through sensitivity analysis.
+* assumptions whose materiality should be tested through sensitivity analysis.
 
-The evidence-led transaction-treatment rules have now been implemented and validated in the classified transaction layer. This document also records the downstream SQL and customer-population decisions that depend directly on those cleaning rules.
+The evidence-led transaction-treatment rules have been implemented and validated in the classified transaction layer. The downstream SQL, customer-population and sensitivity decisions that depend directly on those rules are also recorded here.
+
+For the final feature-selection, segmentation and held-out validation methodology, see [`segmentation_and_validation_methodology.md`](segmentation_and_validation_methodology.md).
 
 ---
 
@@ -66,9 +68,20 @@ Retain exact duplicate rows within the individual source worksheets in the prima
 
 Do not apply a blanket `drop_duplicates()` rule.
 
-The retained rows should receive the same transaction treatment as any other row of their underlying transaction class.
+The retained rows receive the same transaction treatment as any other row of their underlying transaction class.
 
-If duplicate treatment could materially affect final customer segments, compare results with a deduplicated version as a sensitivity check.
+### Sensitivity result
+
+A complete alternative scenario removing all **11,812** excess exact duplicate rows was tested after the final segmentation was designed.
+
+The alternative treatment:
+
+* reduces behavioural observed net sales by **0.34%**;
+* changes final segment membership for only **6 of 4,908 customers (0.12%)**;
+* moves the behavioural high-value boundary from **£1,898.51 to £1,884.36**;
+* moves the historical-only high-value boundary from **£552.40 to £542.89**.
+
+The primary decision to retain the ambiguous duplicate rows is therefore **not material to the final segmentation**.
 
 ---
 
@@ -84,7 +97,7 @@ Within the behavioural window from 1 June 2010 to 31 May 2011:
 * 111,777 rows have no Customer ID;
 * this represents 22.6% of behavioural-window rows;
 * approximately £1.52 million of raw positive transaction value cannot be assigned to a customer;
-* this represents 15.6% of raw positive transaction value in the behavioural window.
+* this represents 15.6% of raw positive transaction value before final transaction classification.
 
 No invoice contains a mixture of identified and unidentified customer rows.
 
@@ -92,11 +105,17 @@ No invoice contains a mixture of identified and unidentified customer rows.
 
 Transactions without a Customer ID cannot contribute to customer-level segmentation.
 
-They should be excluded from customer-level activity, observed-value and product-breadth measures, while remaining available for source-level reconciliation and limitation reporting.
+They are excluded from customer-level:
 
-The scale of the excluded activity should be reported transparently as a project limitation.
+* activity;
+* observed value;
+* product breadth.
 
-The final excluded value share should be recalculated after transaction-cleaning rules have been applied rather than reusing the raw 15.6% figure.
+They remain in the classified transaction layer for reconciliation and limitation reporting.
+
+After the final transaction-classification rules are applied, **15.0% of positive classified transaction value cannot be attributed to an identifiable customer**.
+
+This is retained as an important limitation of the project.
 
 ---
 
@@ -116,7 +135,7 @@ Invoice-level measures can safely be attributed to a single customer where a Cus
 
 The source uses invoice numbers beginning with `C` to identify cancellations.
 
-Most negative-quantity rows correspond to cancellation invoices, but a smaller group of negative-quantity rows does not.
+Most negative-quantity rows correspond to cancellation invoices, but a smaller group does not.
 
 Profiling showed that the non-cancellation negative rows:
 
@@ -128,13 +147,17 @@ These appear to represent inventory or operational adjustments rather than custo
 
 ### Decision
 
-Customer cancellation and return transactions should be retained where needed to calculate observed net customer value.
+Customer cancellation and return transactions are retained where needed to calculate observed net customer value.
 
-Their signed negative value should reduce observed net sales, but the return itself should not make a customer appear more recently or frequently active and should not contribute to product breadth.
+Their signed negative value reduces observed net sales, but the return itself does not make a customer appear more recently or frequently active and does not contribute to product breadth.
 
-Negative-quantity rows that do not represent customer cancellations should not contribute to customer purchasing behaviour, observed customer value or product breadth.
+Negative-quantity rows representing non-customer stock adjustments do not contribute to:
 
-The cleaning pipeline must explicitly distinguish customer returns/cancellations from operational stock adjustments.
+* customer purchasing behaviour;
+* observed customer value;
+* product breadth.
+
+The cleaning pipeline explicitly distinguishes customer returns/cancellations from operational stock adjustments.
 
 ---
 
@@ -148,7 +171,11 @@ They use StockCode `B`, description `Adjust bad debt`, have no Customer ID and c
 
 Treat these as accounting adjustments rather than customer purchases.
 
-They should not contribute to customer purchasing behaviour, observed customer value or product-breadth measures.
+They do not contribute to:
+
+* customer purchasing behaviour;
+* observed customer value;
+* product breadth.
 
 ---
 
@@ -162,7 +189,7 @@ Examples include:
 
 * ordinary merchandise codes;
 * `TEST001`;
-* manual transactions.
+* Manual transactions.
 
 ### Decision
 
@@ -170,7 +197,7 @@ Do not remove zero-price rows solely because their price is zero.
 
 A legitimate zero-price product may represent genuine customer and product activity while contributing £0 to observed net sales.
 
-Explicit test, administrative, sample or other non-purchase records should be treated according to their business meaning rather than being retained merely because a Customer ID is present.
+Explicit test, administrative, sample or other non-purchase records are treated according to their business meaning rather than being retained merely because a Customer ID is present.
 
 ---
 
@@ -182,23 +209,34 @@ Profiling found strong evidence of reversal and correction activity:
 
 * many matching positive and negative price/quantity combinations;
 * 172 perfectly balanced combinations;
-* 422 manual rows in those combinations, representing 30.1% of manual rows after correcting the worksheet overlap.
+* 422 Manual rows in those combinations, representing 30.1% of Manual rows after correcting the worksheet overlap.
 
-Large manual entries frequently form exact-value reversals or adjustments.
+Large Manual entries frequently form exact-value reversals or adjustments.
 
 ### Decision
 
-Manual transactions should not be treated as ordinary merchandise.
+Manual transactions are not treated as ordinary merchandise.
 
-They should:
+They:
 
-* not independently create customer purchasing activity;
-* not contribute to product-breadth measures;
+* do not independently create customer purchasing activity;
+* do not contribute to product breadth;
 * contribute to observed net sales using their signed line value.
 
 Including their signed monetary effect preserves correction and reversal behaviour already represented in the transaction ledger without treating the records as ordinary product purchases.
 
-If Manual entries materially influence customer-value distributions or final segment membership, rerun the relevant analysis with Manual entries excluded as a sensitivity check.
+### Sensitivity result
+
+The final segmentation was rerun with Manual entries excluded from observed customer value.
+
+This alternative treatment:
+
+* increases behavioural observed net sales by **0.60%** because Manual entries are net negative;
+* changes final segment membership for only **4 of 4,908 customers (0.08%)**;
+* moves the behavioural high-value boundary from **£1,898.51 to £1,902.84**;
+* moves the historical-only high-value boundary from **£552.40 to £544.41**.
+
+Manual-entry treatment is therefore **not material to the final segmentation**.
 
 ---
 
@@ -216,7 +254,7 @@ Profiling identified transaction codes representing several different concepts, 
 * test records;
 * samples;
 * gift vouchers;
-* manual entries.
+* Manual entries.
 
 It also showed that non-standard StockCode formatting does not necessarily imply a non-product record. Several genuine merchandise codes do not follow a simple five-digit pattern.
 
@@ -224,7 +262,7 @@ It also showed that non-standard StockCode formatting does not necessarily imply
 
 Do not classify transaction validity using StockCode format alone.
 
-Known special transaction codes should be classified according to their business meaning and treated separately for:
+Known special transaction codes are classified according to their business meaning and treated separately for:
 
 * customer activity;
 * observed net sales;
@@ -232,7 +270,11 @@ Known special transaction codes should be classified according to their business
 
 The agreed treatments are defined explicitly in Section 15.
 
-An unfamiliar or ambiguous StockCode should not be silently classified as either merchandise or administrative activity. Material unresolved cases should be surfaced for investigation.
+An unfamiliar or ambiguous StockCode is not silently classified as either merchandise or administrative activity.
+
+Material unresolved cases must be surfaced for investigation.
+
+The final cleaning pipeline ends with **zero unresolved transaction classifications**.
 
 ---
 
@@ -295,9 +337,9 @@ Multi-country customers therefore represent approximately 0.22% of identifiable 
 
 Do not assume Country is inherently unique at customer level.
 
-If a single customer country is required later, define an explicit assignment rule rather than relying on arbitrary row order.
+If a single customer country is required, define an explicit assignment rule rather than relying on arbitrary row order.
 
-Country is not currently expected to be a core segmentation feature.
+Country is not used as a core segmentation feature in the final analysis.
 
 ---
 
@@ -316,13 +358,36 @@ Positive line value ranges from a median of £11.90 to a maximum of £168,469.60
 
 Several extreme observations appear to represent genuine high-volume transactions rather than obvious data-entry errors.
 
+Customer-level value is also highly concentrated:
+
+* the largest customer accounts for 3.22% of positive observed behavioural value;
+* the highest approximately 1% account for 28.92%;
+* the top 5% account for 49.30%;
+* the top 10% account for 61.57%;
+* the top 20% account for 75.65%.
+
 ### Decision
 
 Do not remove observations purely because they are extreme.
 
-Outliers should be retained unless there is evidence that they are invalid.
+Outliers are retained unless there is evidence that they are invalid.
 
-Customer-level feature distributions should be reviewed after aggregation, and sensitivity or robust segmentation methods should be considered if individual extreme customers dominate the results.
+Because individual customers contribute substantial value, the final segment validation is also tested after removing the highest 1% of behavioural customers by snapshot observed value.
+
+### Sensitivity result
+
+After excluding the highest 1% of behavioural customers, the main held-out future-purchase ordering remains intact:
+
+* High-value active: **91.9%**
+* Core repeat: **81.3%**
+* Recent low-frequency: **60.0%**
+* High-value at risk: **55.9%**
+* Cooling low-frequency: **49.2%**
+* Drifting: **35.1%**
+
+High-value active customers still account for **58.7% of positive held-out customer value** after the highest 1% are removed.
+
+Extreme customers therefore contribute materially to commercial value concentration but **do not create the main behavioural differentiation between the segments**.
 
 ---
 
@@ -336,21 +401,44 @@ The held-out validation window is:
 
 **1 June 2011 to 30 November 2011**
 
-Before final cleaning:
+Initial source profiling found:
 
-* 4,376 identifiable customers appear in the behavioural window;
-* 4,338 have at least one positive-sale row;
-* 3,499 identifiable customers appear in the validation window;
-* 2,500 behavioural-window customers are also observed during validation;
-* 999 validation customers were not observed in the behavioural window.
+* 4,376 identifiable customers in the behavioural window;
+* 4,338 with at least one positive-sale row;
+* 3,499 identifiable customers in the validation window.
 
-### Decision
+These raw-profile counts are superseded for segmentation by the cleaned qualifying-purchase definition.
 
-The final segmentation population will be defined from information available at the 31 May 2011 snapshot only.
+### Final population decision
 
-Validation-period behaviour must not be used to construct the segments.
+The segmentation population is defined solely from information available by the **31 May 2011 snapshot**.
 
-The validation period will be used only to assess whether snapshot-defined segments distinguish subsequent customer behaviour.
+The final eligible population contains **4,908 customers**:
+
+* **4,324 behavioural purchasers** with at least one qualifying purchase during the trailing 12 months;
+* **584 historical-only purchasers** with earlier qualifying purchase history but no qualifying purchase during the behavioural window.
+
+A further **90 identified Customer IDs** have no qualifying purchase history in the available pre-snapshot data and are excluded.
+
+Validation-period behaviour is not used to construct the segments.
+
+### Final validation result
+
+Across all 4,908 snapshot customers:
+
+* **2,549** make at least one qualifying purchase during the six-month held-out period;
+* overall future purchase rate: **51.9%**;
+* future qualifying purchase invoices: **8,470**;
+* held-out observed net sales: **£4,170,456.73**.
+
+Segment-level future purchase rates range from:
+
+* **91.8%** for High-value active customers;
+* to **12.6%** for Lapsed customers.
+
+Full validation results and interpretation are recorded in [`segmentation_and_validation_methodology.md`](segmentation_and_validation_methodology.md).
+
+The validation is descriptive/predictive rather than causal.
 
 ---
 
@@ -364,31 +452,35 @@ The customer-level analysis separates three concepts that should not automatical
 
 A transaction can therefore contribute to one measure without contributing to the others.
 
-| Transaction class                                               | Customer activity      | Observed net sales                         | Product breadth | Treatment rationale                                                                                                                                                                       |
-| --------------------------------------------------------------- | ---------------------- | ------------------------------------------ | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Ordinary positive merchandise sale                              | Yes                    | Include signed `Quantity × Price`          | Yes             | Genuine merchandise purchase.                                                                                                                                                             |
-| Customer cancellation / return                                  | No                     | Include negative signed `Quantity × Price` | No              | Returns reduce observed customer value but should not make a customer appear more recently or frequently active.                                                                          |
-| Non-cancellation negative-quantity stock/inventory adjustment   | No                     | Exclude                                    | No              | Operational stock activity rather than customer behaviour.                                                                                                                                |
-| Bad-debt accounting adjustment                                  | No                     | Exclude                                    | No              | Accounting adjustment rather than customer purchasing behaviour.                                                                                                                          |
-| Genuine zero-price merchandise                                  | Yes                    | Include at £0                              | Yes             | Can represent genuine customer/product activity even though it contributes no sales value.                                                                                                |
-| Customer-facing postage / carriage                              | No additional activity | Include signed line value                  | No              | A genuine customer charge, but not another purchase event or product.                                                                                                                     |
-| Explicit discount                                               | No additional activity | Include signed line value                  | No              | Reduces observed customer value but is not a product or additional purchasing event.                                                                                                      |
-| Bank charge                                                     | No                     | Exclude                                    | No              | Accounting or merchant-cost activity rather than customer purchasing behaviour.                                                                                                           |
-| Amazon/platform fee                                             | No                     | Exclude                                    | No              | Retailer/platform cost rather than customer purchasing behaviour.                                                                                                                         |
-| Commission / `CRUK`-type entry                                  | No                     | Exclude                                    | No              | Non-merchandise accounting or commission activity.                                                                                                                                        |
-| Administrative adjustment, including `ADJUST` / `ADJUST2`       | No                     | Exclude                                    | No              | Back-office adjustment rather than genuine customer activity.                                                                                                                             |
-| Explicit test record, including `TEST001` / `TEST002`           | No                     | Exclude                                    | No              | Test activity should not enter customer measures.                                                                                                                                         |
-| Sample, including `S`                                           | No                     | Exclude                                    | No              | Marketing/sample activity is not evidence that the customer purchased the item.                                                                                                           |
-| Gift-voucher sale                                               | Yes                    | Include signed line value                  | No              | Represents observed customer spend/activity, but not merchandise breadth. This is an analytical transaction-value definition rather than statutory revenue recognition.                   |
-| Manual `M` / `m` entry                                          | No additional activity | Include signed line value                  | No              | Manual entries show substantial correction/reversal behaviour. Retaining their signed financial effect preserves those corrections while avoiding interpretation as ordinary merchandise. |
-| Unusual StockCode that otherwise represents genuine merchandise | Yes                    | Include signed `Quantity × Price`          | Yes             | Non-standard code format alone is not evidence that a row is non-product.                                                                                                                 |
-| Unresolved or ambiguous special code                            | Investigate            | Investigate                                | Investigate     | Do not silently classify an unresolved code. Surface it for review before final customer features are produced.                                                                           |
+| Transaction class                                             | Customer activity      | Observed net sales                         | Product breadth | Treatment rationale                                                                                              |
+| ------------------------------------------------------------- | ---------------------- | ------------------------------------------ | --------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Ordinary positive merchandise sale                            | Yes                    | Include signed `Quantity × Price`          | Yes             | Genuine merchandise purchase.                                                                                    |
+| Customer cancellation / return                                | No                     | Include negative signed `Quantity × Price` | No              | Returns reduce observed customer value but should not make a customer appear more recently or frequently active. |
+| Non-cancellation negative-quantity stock/inventory adjustment | No                     | Exclude                                    | No              | Operational stock activity rather than customer behaviour.                                                       |
+| Bad-debt accounting adjustment                                | No                     | Exclude                                    | No              | Accounting adjustment rather than customer purchasing behaviour.                                                 |
+| Genuine zero-price merchandise                                | Yes                    | Include at £0                              | Yes             | Can represent genuine customer/product activity even though it contributes no sales value.                       |
+| Customer-facing postage / carriage                            | No additional activity | Include signed line value                  | No              | Genuine customer financial effect, but not another purchase event or product.                                    |
+| Explicit discount                                             | No additional activity | Include signed line value                  | No              | Reduces observed customer value but is not a product or additional purchasing event.                             |
+| Bank charge                                                   | No                     | Exclude                                    | No              | Accounting or merchant-cost activity rather than customer behaviour.                                             |
+| Amazon/platform fee                                           | No                     | Exclude                                    | No              | Retailer/platform cost rather than customer behaviour.                                                           |
+| Commission / `CRUK` entry                                     | No                     | Exclude                                    | No              | Non-merchandise accounting or commission activity.                                                               |
+| Administrative adjustment, including `ADJUST` / `ADJUST2`     | No                     | Exclude                                    | No              | Back-office adjustment rather than genuine customer activity.                                                    |
+| Explicit test record, including `TEST001` / `TEST002`         | No                     | Exclude                                    | No              | Test activity should not enter customer measures.                                                                |
+| Sample, including `S`                                         | No                     | Exclude                                    | No              | Marketing/sample activity is not evidence that the customer purchased the item.                                  |
+| Gift-voucher sale                                             | Yes                    | Include signed line value                  | No              | Represents observed customer spend/activity but not merchandise breadth.                                         |
+| Manual `M` / `m` entry                                        | No additional activity | Include signed line value                  | No              | Preserves correction/reversal effects while avoiding interpretation as ordinary merchandise.                     |
+| Unusual StockCode representing genuine merchandise            | Yes                    | Include signed `Quantity × Price`          | Yes             | Non-standard code format alone is not evidence that a row is non-product.                                        |
+| Unresolved or ambiguous special code                          | Investigate            | Investigate                                | Investigate     | Do not silently classify an unresolved code.                                                                     |
 
 ### 15.1 Missing Customer ID
 
-Transactions without an identifiable Customer ID remain part of source-level reconciliation and limitation reporting but cannot contribute to customer-level activity, observed-value or product-breadth measures.
+Transactions without an identifiable Customer ID remain part of source-level reconciliation and limitation reporting but cannot contribute to customer-level:
 
-After the cleaned transaction layer is created, recalculate the proportion of commercial activity excluded because Customer ID is missing.
+* activity;
+* observed value;
+* product breadth.
+
+After final classification, **15.0% of positive classified transaction value cannot be attributed to an identifiable customer**.
 
 ### 15.2 Exact duplicates within retained source sheets
 
@@ -398,7 +490,7 @@ There is no transaction-line identifier that allows an apparently duplicated row
 
 The transaction treatment therefore follows the row's underlying transaction class.
 
-If final segment membership appears materially sensitive to these duplicates, compare the primary result with a deduplicated sensitivity version.
+The completed deduplication sensitivity test changes only **6 of 4,908 segment assignments (0.12%)**, so this treatment is not material to the final segmentation.
 
 ### 15.3 StockCode standardisation
 
@@ -427,7 +519,7 @@ Customer-facing postage/carriage and explicit discounts affect observed net sale
 
 They do not independently contribute to purchasing activity or product breadth.
 
-This prevents administrative or invoice-level financial lines from artificially increasing behavioural frequency or the apparent number of products purchased.
+This prevents invoice-level financial lines from artificially increasing behavioural frequency or the apparent number of products purchased.
 
 ### 15.6 Gift vouchers
 
@@ -435,7 +527,7 @@ A gift-voucher sale to an identifiable customer is treated as genuine customer a
 
 It does not count towards merchandise product breadth.
 
-This is an analytical definition of observed customer transaction value. It should not be interpreted as a statement about statutory revenue-recognition treatment.
+This is an analytical definition of observed transaction value and should not be interpreted as a statement about statutory revenue-recognition treatment.
 
 ### 15.7 Manual-entry sensitivity
 
@@ -443,24 +535,26 @@ Manual entries are included in observed net sales at their signed value because 
 
 They do not count as ordinary purchase activity or product breadth.
 
-If Manual entries materially influence customer-value distributions or final segment membership, rerun the relevant analysis excluding them as a sensitivity check.
+The completed sensitivity analysis excluding Manual monetary effects changes only **4 of 4,908 segment assignments (0.08%)**.
+
+The Manual-entry treatment is therefore not material to the final segmentation.
 
 ### 15.8 Unresolved classifications
 
 The cleaning process must not silently default an unfamiliar special StockCode to either merchandise or administrative activity.
 
-Any unresolved transaction class should be surfaced explicitly for investigation before the customer-feature layer is considered final.
+Any unresolved transaction class is surfaced explicitly for investigation.
+
+The final classified transaction layer contains **zero unresolved classifications**.
 
 ### 15.9 Classification precedence and diagnostic flags
 
-Some rows can satisfy more than one descriptive condition. Transaction classification must therefore follow a deterministic precedence rather than depend on the order in which implementation code happens to run.
+Some rows can satisfy more than one descriptive condition. Transaction classification therefore follows a deterministic precedence rather than depending on the implementation order of individual rules.
 
-The first implementation and subsequent classification QA showed that a specific known transaction code can provide more useful business meaning than the generic `C`-invoice cancellation indicator. For example, a `D` discount line may itself appear on a cancellation invoice.
-
-The final precedence is therefore:
+The final precedence is:
 
 1. **Known hard exclusions**
-   Bad-debt adjustments, bank charges, Amazon/platform fees, commission/`CRUK`-type entries, administrative adjustments, tests and samples.
+   Bad-debt adjustments, bank charges, Amazon/platform fees, commission/`CRUK` entries, administrative adjustments, tests and samples.
 
 2. **Explicit administrative records identified from row context**
    Records whose description and other characteristics establish an administrative purpose despite an otherwise genuine-looking StockCode.
@@ -472,18 +566,18 @@ The final precedence is therefore:
    Manual entries retain their signed financial effect but do not independently contribute to purchasing activity or product breadth.
 
 5. **Recognised non-product customer financial lines**
-   Postage/carriage, explicit discounts and gift vouchers receive their individually defined treatments from the transaction-treatment matrix.
+   Postage/carriage, explicit discounts and gift vouchers receive their individually defined treatments.
 
 6. **Customer cancellations / returns**
-   Remaining `C`-prefixed customer transactions retain their signed financial effect but do not independently contribute to purchasing activity or product breadth.
+   Remaining `C`-prefixed customer transactions retain their signed financial effect but do not independently contribute to purchasing activity or breadth.
 
 7. **Genuine merchandise**
-   This includes ordinary positive-price merchandise, genuine zero-price merchandise and genuine products whose StockCodes use unusual but reviewed and valid formats.
+   Ordinary positive-price merchandise, genuine zero-price merchandise and reviewed genuine products with unusual StockCodes.
 
 8. **Unresolved or ambiguous records**
-   Records that still cannot be classified confidently are surfaced for investigation rather than silently defaulted to merchandise or administrative activity.
+   Surfaced for investigation rather than silently defaulted to another category.
 
-The cleaned transaction layer preserves useful diagnostic characteristics separately from the primary transaction class.
+The cleaned transaction layer preserves diagnostic characteristics separately from the primary transaction class.
 
 Useful row-level fields include:
 
@@ -496,62 +590,56 @@ Useful row-level fields include:
 * `counts_in_net_sales`;
 * `counts_in_product_breadth`.
 
-This means, for example, that assigning a `D` row to the `discount` transaction class does not erase the fact that the transaction was also recorded on a cancellation invoice.
-
-The purpose of the primary class is to provide the most specific reproducible business interpretation available for each row. Supporting flags preserve overlapping source characteristics needed for validation, reconciliation and sensitivity analysis.
+This means, for example, that assigning a `D` row to the `discount` transaction class does not erase the fact that the source invoice may also be a cancellation invoice.
 
 ### 15.10 Retention of classified source rows
 
-The cleaned transaction layer should retain all rows from the corrected 1,044,848-row source rather than physically removing records that do not contribute to customer analysis.
+The cleaned transaction layer retains all rows from the corrected **1,044,848-row source** rather than physically deleting records that do not contribute to customer analysis.
 
-Excluded transaction classes should remain available with explicit classification and treatment flags showing that they do not contribute to the relevant customer measures.
+Excluded transaction classes remain available with explicit classification and treatment flags.
 
 This preserves:
 
-* traceability back to the corrected source;
-* reconciliation between source and cleaned data;
+* source traceability;
+* reconciliation;
 * visibility of excluded activity;
-* the ability to review or revise a classification without reconstructing discarded rows.
+* the ability to review or revise classifications.
 
-Rows without Customer ID should also remain in this classified transaction layer even though they cannot enter customer-level segmentation.
+Rows without Customer ID also remain in this layer.
 
 ### 15.11 Analytical-period labelling
 
-The cleaned transaction layer should retain the complete corrected source date range rather than restricting the stored data to the behavioural and validation windows.
+The classified transaction layer retains the complete corrected source date range.
 
-Each transaction should be assigned an explicit analytical-period label.
-
-The principal periods are:
+Each transaction receives an explicit analytical-period label:
 
 * **pre-behavioural** — before 1 June 2010;
 * **behavioural** — 1 June 2010 to 31 May 2011;
 * **validation** — 1 June 2011 to 30 November 2011;
 * **outside analysis** — records after the validation window.
 
-This allows downstream SQL and feature calculations to apply time-window filters explicitly and makes leakage controls easier to inspect.
+This makes downstream filters and leakage controls explicit.
 
-The segmentation itself must use behavioural-period information available at the 31 May 2011 snapshot only.
+Segment construction uses only information available by the 31 May 2011 snapshot.
 
 ### 15.12 Preservation of raw and cleaned fields
 
-Source fields should be preserved wherever practical rather than overwritten during cleaning.
+Source fields are preserved wherever practical rather than overwritten.
 
-Normalised or analytical versions should be created as additional fields.
+Normalised or analytical versions are created alongside them.
 
 For example:
 
-* retain the original `StockCode`;
-* create a normalised StockCode with surrounding whitespace removed and case standardised;
-* retain the source Description while allowing a cleaned Description field where useful;
-* preserve original transaction quantities, prices and dates.
+* original `StockCode` is retained;
+* normalised StockCode strips whitespace and standardises case;
+* source Description is retained alongside cleaned Description;
+* original quantities, prices and dates remain available.
 
-Valid Customer IDs should use an integer-compatible representation that also supports missing values.
-
-This approach preserves source provenance while providing consistent analytical fields for downstream processing.
+Valid Customer IDs use an integer-compatible representation supporting missing values.
 
 ### 15.13 Row-level monetary measures
 
-The cleaned transaction layer should contain both an unadjusted line-value calculation and the treatment-adjusted value used in customer analysis.
+The cleaned transaction layer contains both an unadjusted line-value calculation and treatment-adjusted monetary measures.
 
 Define:
 
@@ -559,65 +647,59 @@ Define:
 
 for every transaction row.
 
-Also create an `observed_net_sales` measure.
+`observed_net_sales` then contains the signed line value where the transaction-treatment matrix says the row contributes to customer value, and zero where it is excluded.
 
-`observed_net_sales` should contain the signed line value where the transaction-treatment matrix says the row contributes to observed customer value and zero where the row is excluded from that measure.
+Examples:
 
-Examples include:
-
-* ordinary merchandise sale: signed line value included;
-* cancellation/return: negative signed line value included;
+* merchandise sale: signed line value included;
+* cancellation/return: signed negative line value included;
 * postage/carriage: signed line value included;
-* explicit discount: signed line value included;
-* Manual transaction: signed line value included;
+* discount: signed line value included;
+* Manual entry: signed line value included;
 * bank charge: zero;
 * test transaction: zero;
 * operational stock adjustment: zero.
 
-Keeping both measures makes the effect of the analytical treatment explicit and supports reconciliation and validation.
+Keeping both measures makes the analytical treatment transparent and supports reconciliation.
 
-### 15.14 Purchase-frequency definition deferred to customer-feature design
+### 15.14 Purchase-frequency definition
 
-The transaction-cleaning stage should identify whether a row represents qualifying customer purchasing activity but should not itself define the final customer-level purchase-frequency measure.
+Transaction cleaning identifies whether a row represents qualifying purchasing activity but does not use transaction-line counts as customer frequency.
 
-A row-level activity indicator should therefore be created during cleaning.
+The customer-feature stage settles purchase frequency as:
 
-The later customer-feature stage will define the appropriate aggregation, likely using distinct qualifying purchase invoices rather than transaction-line counts.
+> **the number of distinct qualifying purchase invoices during the behavioural window from 1 June 2010 to 31 May 2011**
 
-This prevents transaction cleaning from silently fixing a customer-level behavioural definition that should instead be assessed alongside the other segmentation features.
+Returns, cancellations and non-purchase financial adjustments do not create additional frequency.
+
+Historical-only eligible customers therefore have behavioural purchase frequency equal to zero.
 
 ### 15.15 Unresolved-classification validation gate
 
-The initial cleaning run may expose transactions that cannot yet be classified confidently.
-
-Such rows should be reported explicitly rather than causing the first investigative run to fail or being silently assigned to a default category.
-
-The workflow should be:
+The cleaning workflow is:
 
 1. run transaction classification;
 2. summarise unresolved records;
-3. investigate any unresolved classes;
-4. update and document the treatment where necessary;
-5. rerun and validate the classification.
+3. investigate unresolved classes;
+4. update and document treatments;
+5. rerun and validate classification.
 
-The customer-feature layer should not be considered ready to proceed while **material unresolved transaction classifications** remain.
+The customer-feature layer cannot proceed while material unresolved classifications remain.
 
-This provides an explicit quality gate between transaction cleaning and customer-feature construction.
+The final cleaning run passes this gate with **zero unresolved transaction classifications**.
 
 ### 15.16 Generated cleaned-data artefact
 
-The full classified transaction dataset is a generated analytical artefact rather than a source file that needs to be stored in the public Git repository.
+The full classified transaction dataset is a generated analytical artefact rather than a source file stored in the public repository.
 
-The cleaned transaction dataset should therefore:
+It is:
 
-* be generated reproducibly by the cleaning pipeline;
-* remain available locally for subsequent analysis and SQLite construction;
-* be excluded from Git where its size makes repository storage inappropriate;
-* be reproducible from the documented source data and tracked cleaning code.
+* generated reproducibly by the cleaning pipeline;
+* retained locally for downstream analysis and SQLite construction;
+* excluded from Git because of its size;
+* reproducible from the documented source and tracked cleaning code.
 
-The public repository should instead contain the cleaning logic, analytical documentation and appropriately sized validation or summary outputs required to understand and reproduce the process.
-
-The storage format should be selected for practical analytical value rather than novelty. A new dependency such as Parquet support should only be introduced if it provides a material advantage for this project.
+The public repository contains the cleaning logic, methodology and appropriately sized validation/summary outputs instead.
 
 ---
 
@@ -633,17 +715,219 @@ Confirmed source errors are corrected.
 
 Unusual records are not removed simply because they are inconvenient, extreme, duplicated or difficult to classify.
 
-Different analytical measures are allowed to use different aspects of the same transaction where that reflects the business meaning of the record. For example, a return can reduce observed customer value without being treated as new purchasing activity.
+Different analytical measures are allowed to use different aspects of the same transaction where that reflects its business meaning.
 
-Where the source does not provide enough evidence to make a definitive distinction, the assumption should be documented and, where material, tested through sensitivity analysis.
+For example, a return can reduce observed customer value without being treated as new purchasing activity.
 
-The transaction-treatment methodology, classification precedence and cleaned-layer design are implemented and validated.
+Where the source does not provide enough evidence for a definitive distinction, the assumption is documented and, where material, tested through sensitivity analysis.
+
+The transaction-treatment methodology, classification precedence, cleaned-layer design and material sensitivity checks are now implemented and validated.
 
 ---
 
 ## 17. SQL/SQLite analytical foundation
 
-The classified transaction layer is loaded reproducibly into a local SQLite database using:
+The classified transaction layer is loaded reproducibly into a local SQLite database.
 
-```text
-python/03_build_database.py
+The SQL stage provides a second analytical layer rather than merely repeating the pandas work.
+
+### 17.1 Database construction
+
+`python/03_build_database.py` loads the complete classified transaction dataset into SQLite as `classified_transactions`.
+
+The database build validates the expected:
+
+* **1,044,848 rows**;
+* analytical-period counts;
+* schema;
+* transaction classifications.
+
+Indexes support the main invoice, customer, period and class lookups.
+
+The generated database remains local and is excluded from Git.
+
+### 17.2 Invoice layer
+
+`sql/02_create_invoice_layer.sql` creates one analytical row per source invoice.
+
+The validated invoice layer contains:
+
+**53,628 invoices**
+
+No invoice:
+
+* contains more than one identifiable customer;
+* mixes identified and unidentified customer rows;
+* spans more than one analytical period.
+
+### 17.3 Multiple invoice timestamps
+
+83 invoices contain transaction lines recorded at more than one timestamp.
+
+Investigation found:
+
+* 82 span no more than five minutes;
+* the maximum span is nine minutes;
+* every affected invoice remains on a single calendar date.
+
+### Decision
+
+Use the **first recorded invoice timestamp** consistently for invoice-level timing.
+
+This does not materially alter day-level recency.
+
+### 17.4 Customer eligibility
+
+A Customer ID alone is not enough for segmentation eligibility.
+
+The customer must have evidence of at least one **qualifying purchase on or before the snapshot date**.
+
+The final eligible population contains:
+
+* **4,908 customers**;
+* **4,324 behavioural purchasers**;
+* **584 historical-only purchasers**.
+
+A further:
+
+**90 identified Customer IDs**
+
+have no qualifying purchase history and are excluded.
+
+Historical-only customers remain in scope because the business question includes **reactivation**.
+
+### 17.5 Purchase frequency
+
+Purchase frequency is defined as:
+
+> **distinct qualifying purchase invoices during the trailing 12-month behavioural window**
+
+Because the invoice layer contains one row per invoice, qualifying invoice rows represent purchase occasions directly.
+
+Returns and non-purchase adjustments do not create frequency.
+
+Historical-only customers have frequency equal to zero.
+
+### 17.6 Snapshot customer measures
+
+The validated base customer snapshot layer contains:
+
+* recency;
+* observed tenure;
+* pre-behavioural purchase invoices;
+* 12-month purchase frequency;
+* active months;
+* 12-month observed net sales;
+* product breadth;
+* behavioural/historical-only population flags.
+
+Recency is based on the most recent **qualifying purchase**, not the most recent return or adjustment.
+
+Product breadth uses distinct normalised StockCodes across qualifying merchandise lines.
+
+Observed tenure describes only the period visible in the source and is not treated as true lifetime tenure.
+
+### 17.7 Enriched segmentation features
+
+Feature analysis led to a second segmentation-oriented layer adding:
+
+* prior purchase invoices;
+* prior active months;
+* prior observed net sales;
+* prior product breadth;
+* average qualifying purchase-invoice value;
+* previous three-month purchase frequency/value;
+* recent three-month purchase frequency/value;
+* recent activity pattern.
+
+Historical-only customers require prior observed value because their trailing-12-month purchasing measures are structurally zero.
+
+### 17.8 Monetary reconciliation
+
+Behavioural observed net sales for the final eligible segmentation population reconcile exactly between the customer feature layer and transaction layer at:
+
+**£7,762,616.79**
+
+The 90 identified but ineligible Customer IDs account for the difference between this eligible-population total and the broader identified-customer total.
+
+### 17.9 Final segmentation
+
+The final segmentation contains eight mutually exclusive and collectively exhaustive groups:
+
+* High-value active;
+* High-value at risk;
+* Core repeat;
+* Recent low-frequency;
+* Cooling low-frequency;
+* Drifting;
+* High-value lapsed;
+* Lapsed.
+
+Behavioural high value is defined as the highest fifth of observed 12-month net sales.
+
+The empirical behavioural boundary is:
+
+**£1,898.51**
+
+Historical-only high value is defined independently using prior observed net sales.
+
+The empirical boundary is:
+
+**£552.40**
+
+The complete segment-design rationale is documented in [`segmentation_and_validation_methodology.md`](segmentation_and_validation_methodology.md).
+
+### 17.10 Held-out validation
+
+Segment definitions are frozen before examining validation-period outcomes.
+
+During the six-month held-out period:
+
+* **2,549 of 4,908 customers (51.9%)** make a qualifying purchase;
+* the population generates **8,470 qualifying purchase invoices**;
+* held-out observed net sales total **£4,170,456.73**.
+
+Future purchase rates range from:
+
+* High-value active: **91.8%**;
+* Core repeat: **81.3%**;
+* Recent low-frequency: **60.0%**;
+* High-value at risk: **55.9%**;
+* Cooling low-frequency: **49.2%**;
+* Drifting: **35.1%**;
+* High-value lapsed: **21.4%**;
+* Lapsed: **12.6%**.
+
+The results demonstrate useful subsequent-behaviour differentiation but are **not interpreted causally**.
+
+### 17.11 Sensitivity conclusion
+
+The three principal robustness questions have been resolved:
+
+* exact-deduplication changes **0.12%** of segment assignments;
+* excluding Manual monetary effects changes **0.08%**;
+* excluding the highest 1% of behavioural customers does not change the main future-purchase ordering.
+
+The final segmentation is therefore not dependent on a single ambiguous cleaning decision or on a handful of exceptionally large customers.
+
+---
+
+## 18. Final data-quality conclusion
+
+The project does not attempt to create an artificially pristine retail dataset.
+
+Instead, it preserves the commercial complexity of the source while making explicit distinctions between:
+
+* genuine purchasing activity;
+* customer financial effects;
+* product activity;
+* operational adjustments;
+* accounting records;
+* unidentified activity;
+* genuinely ambiguous records.
+
+The most material uncertain treatment decisions were carried through to the completed segmentation and tested directly.
+
+The resulting customer groups remain stable under those alternatives and show substantial differentiation in held-out purchasing behaviour.
+
+The remaining limitations — particularly missing Customer IDs, finite historical coverage and highly concentrated customer value — are therefore documented as limitations rather than hidden through aggressive data removal.
