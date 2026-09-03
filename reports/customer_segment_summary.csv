@@ -1,0 +1,9 @@
+customer_segment,customer_count,average_recency_days,average_purchase_frequency,average_active_months,average_snapshot_observed_net_sales,total_snapshot_observed_net_sales,average_product_breadth,average_purchase_invoice_value,average_prior_observed_net_sales,future_purchasers,average_future_purchase_frequency,average_days_to_next_purchase,average_future_observed_net_sales,total_future_observed_net_sales,average_future_product_breadth,positive_snapshot_value,positive_future_value,customer_share_pct,future_purchase_rate_pct,future_purchase_rate_lift,positive_snapshot_value_share_pct,positive_future_value_share_pct,future_purchase_rate_ci95_lower_pct,future_purchase_rate_ci95_upper_pct
+High-value active,806,39.6,11.85,6.57,6785.59,5469186.48,146.9,631.57,,740,5.73,42.9,3718.72,2997285.08,82.6,5469186.483,2998053.8000000003,16.4,91.8,1.77,70.2,71.7,89.7,93.5
+High-value at risk,59,230.7,3.58,2.47,3497.38,206345.47,84.5,1615.85,,33,1.22,98.2,1097.6,64758.43,35.7,206345.47,69046.06,1.2,55.9,1.08,2.6,1.7,43.3,67.8
+Core repeat,321,54.7,6.59,4.96,1285.41,412615.89,83.0,214.11,,261,2.54,63.8,569.78,182900.01,37.2,412615.891,183147.93,6.5,81.3,1.57,5.3,4.4,76.7,85.2
+Recent low-frequency,1010,41.5,2.2,2.02,643.87,650306.05,37.5,309.06,,606,1.4,71.5,425.68,429938.04,23.1,650306.05,430264.89,20.6,60.0,1.16,8.3,10.3,56.9,63.0
+Cooling low-frequency,551,135.6,2.06,1.92,567.61,312753.65,35.7,364.7,,271,0.95,83.8,280.04,154304.32,16.6,313708.06,154423.47,11.2,49.2,0.95,4.0,3.7,45.0,53.3
+Drifting,1577,242.4,1.64,1.41,468.16,738290.67,31.0,309.42,,554,0.57,95.9,192.05,302859.89,11.8,738290.67,305221.841,32.1,35.1,0.68,9.5,7.3,32.8,37.5
+High-value lapsed,117,427.0,0.0,0.0,-225.63,-26398.97,0.0,,2010.81,25,0.25,96.9,122.6,14344.24,7.1,35.0,14953.640000000001,2.4,21.4,0.41,0.0,0.4,14.9,29.6
+Lapsed,467,453.4,0.0,0.0,-1.03,-482.45,0.0,,235.2,59,0.19,103.8,51.53,24066.72,3.4,0.0,24179.07,9.5,12.6,0.24,0.0,0.6,9.9,16.0
