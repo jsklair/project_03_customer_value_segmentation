@@ -1,8 +1,10 @@
 # Project 03: Customer Value & Retention Segmentation
 
-A customer segmentation project for a UK online retailer, using Python and SQL to turn transaction history into actionable retention, growth and reactivation priorities.
+A customer segmentation analysis for a UK online retailer, using Python and SQL to turn transaction history into retention, growth and reactivation priorities.
 
 Segments are defined at a fixed historical snapshot and then tested against six months of purchasing behaviour that was deliberately withheld from segment construction.
+
+[View the published analysis](https://jsklair.github.io/project_03_customer_value_segmentation/)
 
 ## Business question
 
