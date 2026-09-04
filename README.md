@@ -255,6 +255,6 @@ See [`docs/run_project_locally.md`](docs/run_project_locally.md) for the complet
 
 ## Status
 
-**Analysis and reproducibility complete — final repository publication and merge QA in progress.**
+**Complete and published — analysis, held-out validation, reproducibility QA and GitHub Pages publication are final.**
 
 See [`project_plan.md`](project_plan.md) for the initial analytical design, [`data_sources.md`](data_sources.md) for source provenance and licence information, and [`docs/segmentation_and_validation_methodology.md`](docs/segmentation_and_validation_methodology.md) for the final segmentation methodology.
